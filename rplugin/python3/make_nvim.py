@@ -1,4 +1,4 @@
-from typing import Iterable, List, Optional
+from typing import List, Optional
 import neovim
 import os
 import pathlib
@@ -9,18 +9,35 @@ class Main:
     def __init__(self, vim):
         self.vim: neovim.Nvim = vim
         self.__make_path = self.find_make()
+        with open("rplugin/python3/make_opts.txt") as fin:
+            self.__opts = [
+                i[:-1] if i[-1] == "\n" else i for i in fin.readlines()
+            ]
+
+    def find_current_word(self, cmdline: str, cursor: int) -> str:
+        head, tail = cursor, cursor
+        while head > 4 and cmdline[head - 1] != " ":
+            head -= 1
+        while tail < len(cmdline) and cmdline[tail] != " ":
+            tail += 1
+        if tail > head:
+            return cmdline[head:tail]
+        return ""
 
     @neovim.function("MakeCompletion", sync=True)
     def make_completion(self, args):
         argLead, cmdline, cursorPos = args
-        if cmdline[:4] == "Make":
-            cmdline = cmdline[4:].strip()
+        currentWord = self.find_current_word(cmdline, cursorPos - 1)
+        self.vim.api.command(f'echo "{args}"')
 
-        valid_targets = [i for i in self.get_make_targets() if cmdline in i]
+        options = []
+        if currentWord != "" and currentWord[0] == "-":
+            options = [i for i in self.__opts if currentWord in i]
+        valid_targets = [i for i in self.get_make_targets() if currentWord in i]
         if valid_targets:
-            return valid_targets
+            return options + valid_targets
         else:
-            return self.get_make_targets()
+            return options + self.get_make_targets()
 
     @neovim.command(
         "Make",
@@ -48,7 +65,7 @@ class Main:
             current_dir = str(pathlib.Path(current_dir).parent)
         return None
 
-    def get_make_targets(self) -> Iterable[str]:
+    def get_make_targets(self) -> List[str]:
         make_dir = self.find_make()
         if make_dir is None:
             return []
@@ -58,7 +75,7 @@ class Main:
                 for i in fin.readlines()
                 if i[0] != " " and i[0] != "\t"
             ]
-        return map(lambda x: x.split(":")[0], content)
+        return [x.split(":")[0] for x in content]
 
 
 if __name__ == "__main__":
