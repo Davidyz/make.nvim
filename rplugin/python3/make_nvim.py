@@ -50,7 +50,7 @@ class Main:
         sync=True,
         complete="customlist,MakeCompletion",
     )
-    def make(self, args: list[str], range: list[list[int]]):
+    def make(self, args: List[str], range: List[List[int]]):
         original_dir = os.getcwd()
         make_dir = self.find_make()
         if make_dir is None:
@@ -87,7 +87,7 @@ class Main:
         sync=True,
         complete="customlist,MakeRootCompletion",
     )
-    def make_root(self, args: list[str], range: list[list[int]]):
+    def make_root(self, args: List[str], range: List[List[int]]):
         original_dir = os.getcwd()
         make_dir = self.find_make(top=True)
         if make_dir is None:
