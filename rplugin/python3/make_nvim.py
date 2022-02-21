@@ -6,13 +6,14 @@ import pathlib
 
 @neovim.plugin
 class Main:
-    def __init__(self, vim):
-        self.vim: neovim.Nvim = vim
+    def __init__(self, vim: neovim.Nvim):
+        self.__RUNTIME_PATH: str = os.path.sep.join(
+            __file__.split(os.path.sep)[:-1]
+        )
+        self.vim = vim
         self.__make_path = self.find_make()
-        with open("rplugin/python3/make_opts.txt") as fin:
-            self.__opts = [
-                i[:-1] if i[-1] == "\n" else i for i in fin.readlines()
-            ]
+        with open(os.path.join(self.__RUNTIME_PATH, "make_opts.txt")) as fin:
+            self.__opts = [i.strip() for i in fin.readlines()]
 
     def find_current_word(self, cmdline: str, cursor: int) -> str:
         head, tail = cursor, cursor
@@ -30,14 +31,17 @@ class Main:
         currentWord = self.find_current_word(cmdline, cursorPos - 1)
         self.vim.api.command(f'echo "{args}"')
 
+        if argLead == "":
+            return self.get_make_targets()
         options = []
-        if currentWord != "" and currentWord[0] == "-":
-            options = [i for i in self.__opts if currentWord in i]
-        valid_targets = [i for i in self.get_make_targets() if currentWord in i]
-        if valid_targets:
-            return options + valid_targets
+        for source in (self.get_make_targets(), self.__opts):
+            for i in source:
+                if argLead == i[: len(argLead)]:
+                    options.append(i)
+        if options:
+            return options
         else:
-            return options + self.get_make_targets()
+            return self.get_make_targets()
 
     @neovim.command(
         "Make",
@@ -71,9 +75,9 @@ class Main:
             return []
         with open(os.path.join(make_dir, "Makefile")) as fin:
             content = [
-                i.replace("\n", "")
+                i.strip()
                 for i in fin.readlines()
-                if i[0] != " " and i[0] != "\t"
+                if i[0] != " " and i[0] != "\t" and i.strip().endswith(":")
             ]
         return [x.split(":")[0] for x in content]
 
