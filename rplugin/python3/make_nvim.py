@@ -53,24 +53,71 @@ class Main:
     def make(self, args: list[str], range: list[list[int]]):
         original_dir = os.getcwd()
         make_dir = self.find_make()
+        if make_dir is None:
+            self.vim.command("echo 'No Makefile can be found.'")
+            return
         self.vim.command(f"cd {make_dir}")
         command = f'make {" ".join(args)}'
         self.vim.command(f'echo "{command}"')
         self.vim.command(command)
         self.vim.command(f"cd {original_dir}")
 
-    def find_make(self) -> Optional[str]:
+    @neovim.function("MakeRootCompletion", sync=True)
+    def make_root_completion(self, args):
+        argLead, cmdline, cursorPos = args
+        currentWord = self.find_current_word(cmdline, cursorPos - 1)
+        self.vim.api.command(f'echo "{args}"')
+
+        if argLead == "":
+            return self.get_make_targets(top=True)
+        options = []
+        for source in (self.get_make_targets(top=True), self.__opts):
+            for i in source:
+                if argLead == i[: len(argLead)]:
+                    options.append(i)
+        if options:
+            return options
+        else:
+            return self.get_make_targets(top=True)
+
+    @neovim.command(
+        "MakeRoot",
+        range="",
+        nargs="*",
+        sync=True,
+        complete="customlist,MakeRootCompletion",
+    )
+    def make_root(self, args: list[str], range: list[list[int]]):
+        original_dir = os.getcwd()
+        make_dir = self.find_make(top=True)
+        if make_dir is None:
+            self.vim.command("echo 'No Makefile can be found.'")
+            return
+        self.vim.command(f"cd {make_dir}")
+        command = f'make {" ".join(args)}'
+        self.vim.command(f'echo "{command}"')
+        self.vim.command(command)
+        self.vim.command(f"cd {original_dir}")
+
+    def find_make(self, top=False) -> Optional[str]:
         current_dir = os.getcwd()
+        make_dir = None
         while current_dir:
             if "Makefile" in os.listdir(current_dir):
-                return current_dir
+                make_dir = current_dir
+                if not top:
+                    return (
+                        None
+                        if current_dir is None
+                        else os.path.realpath(current_dir)
+                    )
             elif current_dir == str(pathlib.Path(current_dir).parent):
-                return None
+                break
             current_dir = str(pathlib.Path(current_dir).parent)
-        return None
+        return None if make_dir is None else os.path.realpath(make_dir)
 
-    def get_make_targets(self) -> List[str]:
-        make_dir = self.find_make()
+    def get_make_targets(self, top=False) -> List[str]:
+        make_dir = self.find_make(top)
         if make_dir is None:
             return []
         with open(os.path.join(make_dir, "Makefile")) as fin:

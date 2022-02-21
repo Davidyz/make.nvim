@@ -7,11 +7,18 @@ jobs in subdirectories of the repository.
 
 
 ## Usage
+
+### `:Make`
 `:Make {make_target}`
 You may also pass other argument to this command. For example:
 ```bash
 :Make -j2
 ```
+
+### `:MakeRoot`
+Same as `:Make`, but use the top-most `Makefile` (closest to the root 
+directory). This is usually the `Makefile` for the whole project and therefore
+may be needed even when working in a subdirectory.
 
 ## Requirement
 Python3 support for neovim.
